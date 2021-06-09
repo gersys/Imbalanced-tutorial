@@ -31,6 +31,8 @@ from sklearn import metrics
 
 from cb_loss import CB_loss
 
+from torchsampler import ImbalancedDatasetSampler
+
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -63,12 +65,21 @@ transform_test = transforms.Compose([
 
 
 # -----------------------------------------------------------------------------------
+batch_size=128
+num_classes =args.num_cls
+#
+# sample_per_cls=np.asarray([272,10])
+# weights = 1 / torch.Tensor(sample_per_cls)
+# weights = weights.double()
+# sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, num_classes)
+# trainloader = torch.utils.data.DataLoader(trainDataset, batch_size = batch_size, sampler = sampler)
+
 
 
 trainset = torchvision.datasets.ImageFolder(
     root='./data/custom/train', transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True, num_workers=0)
+    trainset ,batch_size=128, shuffle=True,num_workers=0)
 
 
 testset = torchvision.datasets.ImageFolder(
@@ -100,7 +111,7 @@ print('==> Building model..')
 # net = RegNetX_200MF()
 # net = SimpleDLA()
 
-num_classes =args.num_cls
+
 lamda= 1
 
 net = models.resnet18(pretrained=True)
@@ -141,6 +152,20 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
+def get_sample_per_cls(trainset,num_classes):
+    sample_per_cls=np.zeros(num_classes)
+    for i in range(num_classes):
+        classset=torch.utils.data.Subset(trainset, i)
+        classloader=torch.utils.data.DataLoader(classset,batch_size=1,shuffle=False,num_workers=0)
+        for idx , _ in enumerate(classloader):
+            sample_per_cls[i]+=1
+
+
+    return sample_per_cls
+
+
+
+
 def train(epoch):
     print('\nEpoch: %d' % epoch)
     print("Current lr : {}".format(get_lr(optimizer)))
@@ -149,15 +174,23 @@ def train(epoch):
     correct = 0
     total = 0
 
+    # sample_per_cls=get_sample_per_cls(trainset,num_classes)
+    # print(sample_per_cls)
+    #
+    # exit()
+
+
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
 
         inputs ,targets = inputs.to(device) ,targets.to(device)
+
+        # print(targets)
         optimizer.zero_grad()
         outputs = net(inputs)
 
         #ok, ng sample 수 입력하시면 됩니다.
-        sample_per_cls=np.asarray([272,27])
+        sample_per_cls=np.asarray([272,15])
         cbloss = CB_loss(targets,outputs,sample_per_cls,2,"softmax",0.9,2.0)
         # loss = criterion(outputs, targets)
 
@@ -165,7 +198,7 @@ def train(epoch):
         cbloss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
+        train_loss += cbloss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
