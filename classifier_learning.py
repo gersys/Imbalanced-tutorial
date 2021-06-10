@@ -265,7 +265,7 @@ def test(epoch):
 
     # Save checkpoint.
     acc = 100.*correct/total
-    if acc > best_acc:
+    if acc >= best_acc:
         print('Saving..')
         state = {
             'net': net.state_dict(),
@@ -273,7 +273,7 @@ def test(epoch):
             'epoch': epoch,
         }
         if not os.path.isdir('checkpoint/stage2'):
-            os.mkdir('checkpoint/stage2')
+            os.makedirs('checkpoint/stage2')
         torch.save(state, './checkpoint/stage2/ckpt.pth')
         best_acc = acc
 
