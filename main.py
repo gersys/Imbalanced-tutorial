@@ -87,7 +87,7 @@ trainloader = torch.utils.data.DataLoader(
 testset = torchvision.datasets.ImageFolder(
     root='./data/custom/test', transform=transform_test)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=100, shuffle=False, num_workers=0)
+    testset, batch_size=24, shuffle=False, num_workers=0)
 
 # --------------------------------------------------------------------------------
 
@@ -222,7 +222,11 @@ def test(epoch):
     pred_all = []
     target_all = []
 
+    #test loader에 있는 모든 파일의 파일명을 불러옴.
+    sample_fname = np.asarray(testloader.dataset.samples)
+
     with torch.no_grad():
+        batch_count=0
         for batch_idx, (inputs, targets) in enumerate(testloader):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = net(inputs)
@@ -237,13 +241,35 @@ def test(epoch):
             target_all.extend(targets.data.cpu().numpy())
 
 
-            # #---------------------------------------------------------------------------
-            # # 아래는 예측과 실제 정답이 맞는지 틀린지 확인하는 코드 입니다.
-            # print(predicted.eq(targets))
-            #
-            # # 결과 중에 틀린 경우(False)의 index를 출력합니다.
+
+            #---------------------------------------------------------------------------
+            # 아래는 예측과 실제 정답이 맞는지 틀린지 확인하는 코드 입니다.
+            print(predicted.eq(targets))
+
+            # 결과 중에 틀린 경우(False)의 index를 출력합니다.
             # print(torch.where(predicted.eq(targets)==False))
-            # #---------------------------------------------------------------------------
+
+            # False index를 numpy형태로 저장 (추후 전체 파일명이 저장된 numpy에서 추려내기 위함)
+            false_index = torch.where(predicted.eq(targets)==False)[0].cpu().numpy()
+
+            # batch마다 전체 파일이 담기지 않기 때문에 batch가 지난 만큼의 file수를 조정하여 index계산
+            # (이 부분은 헷갈리시면 말씀해주세요)
+            false_index = (batch_idx*batch_count)+false_index
+
+            print("batch idx : {}".format(batch_idx))
+            print("false index len :{}".format(len(false_index)))
+            print("false index: {}".format(false_index))
+
+            if len(false_index)==0: #false가 없는 경우
+                print("there are no false indexes")
+            else: #false가 있는 경우 false 파일의 이름 및 길이 출력장
+                false_file_name = sample_fname[false_index]
+                print(false_file_name)
+                print(len(false_file_name))
+
+            batch_count += inputs.size(0) # index 조정을 위한 현재까지 Loading한 file개수 저
+            #---------------------------------------------------------------------------
+
 
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
