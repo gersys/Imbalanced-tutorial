@@ -31,7 +31,7 @@ from sklearn import metrics
 
 from cb_loss import CB_loss
 
-from torchsampler import ImbalancedDatasetSampler
+#from torchsampler import ImbalancedDatasetSampler
 
 import cv2
 
@@ -128,14 +128,14 @@ net = net.to(device)
 
 # 저장된 모델을 load하는 부분입니다.
 # ----------------------------------------------------------------------------------
-if args.resume:
-    # Load checkpoint.
-    print('==> Resuming from checkpoint..')
-    assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('./checkpoint/ckpt.pth')
-    net.load_state_dict(checkpoint['net'])
-    best_acc = checkpoint['acc']
-    start_epoch = checkpoint['epoch']
+
+# Load checkpoint.
+print('==> Resuming from checkpoint..')
+assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+checkpoint = torch.load('./checkpoint/ckpt.pth')
+net.load_state_dict(checkpoint['net'])
+best_acc = checkpoint['acc']
+start_epoch = checkpoint['epoch']
 # ----------------------------------------------------------------------------------
 
 
@@ -182,6 +182,19 @@ def train(epoch):
     # exit()
 
 
+    # Classifier빼고 모두 freeze
+    cnt=0
+    for param in net.parameters():
+        param.requires_grad = False
+        cnt += 1
+        if cnt==61:
+            break
+
+    # classifier만 학습 확인
+    # for param in net.parameters():
+    #     print(param)
+
+
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
 
@@ -193,16 +206,15 @@ def train(epoch):
 
         #ok, ng sample 수 입력하시면 됩니다.
         sample_per_cls=np.asarray([272,15])
-        #cbloss = CB_loss(targets,outputs,sample_per_cls,2,"softmax",0.9,2.0)
+        cbloss = CB_loss(targets,outputs,sample_per_cls,2,"softmax",0.9,2.0)
         loss = criterion(outputs, targets)
 
 
-        loss.backward()
-        #cbloss.backward()
+        # loss.backward()
+        cbloss.backward()
         optimizer.step()
 
-        # train_loss += cbloss.item()
-        train_loss += loss.item()
+        train_loss += cbloss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
@@ -260,9 +272,9 @@ def test(epoch):
             'acc': acc,
             'epoch': epoch,
         }
-        if not os.path.isdir('checkpoint'):
-            os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/ckpt.pth')
+        if not os.path.isdir('checkpoint/stage2'):
+            os.mkdir('checkpoint/stage2')
+        torch.save(state, './checkpoint/stage2/ckpt.pth')
         best_acc = acc
 
 
