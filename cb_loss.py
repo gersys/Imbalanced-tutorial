@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-
+from loss import T_Softmax
 
 
 def focal_loss(labels, logits, alpha, gamma):
@@ -36,7 +36,7 @@ def focal_loss(labels, logits, alpha, gamma):
 
 
 
-def CB_loss(labels, logits, samples_per_cls, no_of_classes, loss_type, beta, gamma):
+def CB_loss(labels=None, logits=None, T=1.0 , flood=0.0  , samples_per_cls=None, no_of_classes=2, loss_type='softmax', beta=0.9, gamma=2.0):
     """Compute the Class Balanced Loss between `logits` and the ground truth `labels`.
     Class Balanced Loss: ((1-beta)/(1-beta^n))*Loss(labels, logits)
     where Loss is one of the standard losses used for Neural Networks.
@@ -69,6 +69,13 @@ def CB_loss(labels, logits, samples_per_cls, no_of_classes, loss_type, beta, gam
     elif loss_type == "sigmoid":
         cb_loss = F.binary_cross_entropy_with_logits(input = logits,target = labels_one_hot, weights = weights)
     elif loss_type == "softmax":
-        pred = logits.softmax(dim = 1)
-        cb_loss = F.binary_cross_entropy(input = pred, target = labels_one_hot, weight = weights)
-    return cb_loss
+        probs = logits.softmax(dim = 1)
+        T_probs = (probs/T)
+
+        cb_loss = F.binary_cross_entropy(input = T_probs, target = labels_one_hot, weight = weights)
+
+
+    if flood>0.0:
+        return abs((cb_loss * 0.05)-flood) +flood
+    else:
+        return cb_loss*0.05

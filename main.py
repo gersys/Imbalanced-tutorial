@@ -193,16 +193,16 @@ def train(epoch):
 
         #ok, ng sample 수 입력하시면 됩니다.
         sample_per_cls=np.asarray([272,15])
-        #cbloss = CB_loss(targets,outputs,sample_per_cls,2,"softmax",0.9,2.0)
-        loss = criterion(outputs, targets)
+        cbloss = CB_loss(labels=targets, logits=outputs, T=1.2, flood=0.05, samples_per_cls=sample_per_cls, no_of_classes=num_classes ,loss_type="softmax", beta=0.9, gamma=2.0)
+        # loss = criterion(outputs, targets)
 
 
-        loss.backward()
-        #cbloss.backward()
+        # loss.backward()
+        cbloss.backward()
         optimizer.step()
 
-        # train_loss += cbloss.item()
-        train_loss += loss.item()
+        train_loss += cbloss.item()
+        # train_loss += loss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
